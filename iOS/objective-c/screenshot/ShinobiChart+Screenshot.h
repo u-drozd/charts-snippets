@@ -31,19 +31,22 @@
 @implementation ShinobiChart (Screenshot)
 
 -(BOOL)addPieChartLabel:(UILabel *)label {
-    // Use associated references to simulate an ivars
-    NSMutableArray *piechartLabels = objc_getAssociatedObject(self, OBJECT_KEY);
-    if(!piechartLabels){
-        piechartLabels = [NSMutableArray new];
-    }
-    for(UILabel *loopLabel in piechartLabels) {
-        if([loopLabel isEqual:label]){
-            return NO;
+    if(label){
+        // Use associated references to simulate an ivars
+        NSMutableArray *piechartLabels = objc_getAssociatedObject(self, OBJECT_KEY);
+        if(!piechartLabels){
+            piechartLabels = [NSMutableArray new];
         }
+        for(UILabel *loopLabel in piechartLabels) {
+            if([loopLabel isEqual:label]){
+                return NO;
+            }
+        }
+        [piechartLabels addObject:label];
+        objc_setAssociatedObject(self, OBJECT_KEY, piechartLabels, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        return YES;
     }
-    [piechartLabels addObject:label];
-    objc_setAssociatedObject(self, OBJECT_KEY, piechartLabels, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    return YES;
+    return NO;
 }
 
 - (UIImage*)snapshot {
