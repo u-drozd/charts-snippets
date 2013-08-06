@@ -19,15 +19,37 @@
 #import <ShinobiCharts/ShinobiChart.h>
 #import <ShinobiCharts/SChartCanvas.h>
 #import "SChartGLView+Screenshot.h"
+#import <objc/runtime.h>
+
+#define OBJECT_KEY "pieChartLabels"
 
 @interface ShinobiChart (Screenshot)
 - (UIImage*)snapshot;
+- (BOOL)addPieChartLabel:(UILabel*)label;
 @end
 
 @implementation ShinobiChart (Screenshot)
 
+-(BOOL)addPieChartLabel:(UILabel *)label {
+    // Use associated references to simulate an ivars
+    NSMutableArray *piechartLabels = objc_getAssociatedObject(self, OBJECT_KEY);
+    if(!piechartLabels){
+        piechartLabels = [NSMutableArray new];
+    }
+    for(UILabel *loopLabel in piechartLabels) {
+        if([loopLabel isEqual:label]){
+            return NO;
+        }
+    }
+    [piechartLabels addObject:label];
+    objc_setAssociatedObject(self, OBJECT_KEY, piechartLabels, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    return YES;
+}
+
 - (UIImage*)snapshot {
-    
+    CGRect oldBounds;
+    CGAffineTransform oldTransform;
+    UIImage *image;
     CGRect glFrame = self.canvas.glView.frame;
     glFrame.origin.y = self.canvas.frame.origin.y;
     
@@ -59,33 +81,14 @@
         if (ann.position == SChartAnnotationAboveData && [self annotationIsOnScreen:ann.frame]) {
             //if above gl, then add to top of glImageView (annotations under gl are already part of the chartImageView)
             
-            /* Certain annotations have transforms applied to them - see updateViewWithCanvas: of SChartAnnotationZooming. Due to this we have to ensure that the bounds are correct before starting (and that we have reset the transform).*/
-            //get correct bounds of annotation
-            CGRect correctBounds = ann.frame;
-            correctBounds.origin = CGPointZero;
-            CGContextRef context;
+            CGRect annotationFrame = ann.frame;
+            UIImage *editedAnnotationImage = image;
             
             //record annotations current bounds and transform
-            CGRect oldBounds = ann.bounds;
-            CGAffineTransform oldTransform = ann.transform;
-
-            //set correct bounds and identity transform
-            ann.bounds = correctBounds;
-            ann.transform = CGAffineTransformIdentity;
+            oldBounds = ann.bounds;
+            oldTransform = ann.transform;
             
-            if ([[UIScreen mainScreen] respondsToSelector:@selector(scale)]) {
-                UIGraphicsBeginImageContextWithOptions(ann.frame.size, NO, [UIScreen mainScreen].scale);
-            } else {
-                UIGraphicsBeginImageContext(ann.frame.size);
-            }
-            context = UIGraphicsGetCurrentContext();
-            
-            [ann.layer renderInContext:context];
-            
-            CGRect annotationFrame = ann.frame;
-            UIImage *annotationImage = UIGraphicsGetImageFromCurrentImageContext();
-            UIImage *editedAnnotationImage = annotationImage;
-            UIGraphicsEndImageContext();
+            image = [self setUpImageForView:ann];
             
             // Reset frame origin and into account the axis lines
             glFrame.origin = CGPointMake([self.yAxis.style.lineWidth floatValue],
@@ -98,9 +101,9 @@
             // If annotation frame is overlapping left or right side of chart
             if(CGRectGetMaxX(annotationFrame) > CGRectGetMaxX(glFrame)){
                 annotationFrame = CGRectMake(annotationFrame.origin.x,
-                                   annotationFrame.origin.y,
-                                   CGRectGetMaxX(glFrame) - annotationFrame.origin.x,
-                                   annotationFrame.size.height);
+                                             annotationFrame.origin.y,
+                                             CGRectGetMaxX(glFrame) - annotationFrame.origin.x,
+                                             annotationFrame.size.height);
                 cropFrame.size = CGSizeMake(annotationFrame.size.width, annotationFrame.size.height);
             }else if(annotationFrame.origin.x < glFrame.origin.x){
                 cropFrame = CGRectMake(glFrame.origin.x - annotationFrame.origin.x,
@@ -131,22 +134,28 @@
                                              CGRectGetMaxY(annotationFrame) - glFrame.origin.y);
             }
             
-            // Crop image if it needs cropFrameping
+            // Crop image if it needs cropping
             if(cropFrame.size.height != ann.frame.size.height || cropFrame.size.width != ann.frame.size.width){
-                CGImageRef imageRef = CGImageCreateWithImageInRect([annotationImage CGImage], cropFrame);
+                CGImageRef imageRef = CGImageCreateWithImageInRect([image CGImage], cropFrame);
                 editedAnnotationImage = [UIImage imageWithCGImage:imageRef];
                 CGImageRelease(imageRef);
+                image = editedAnnotationImage;
             }
-    
-            //Turn the annotation image into a view and add to glImageView
-            UIImageView *annImageView = [[UIImageView alloc] initWithFrame:annotationFrame];
-            [annImageView setImage:editedAnnotationImage];
-            [glImageView addSubview:annImageView];
-            
-            //set bounds and transform back
-            ann.bounds = oldBounds;
-            ann.transform = oldTransform;
+            [glImageView addSubview:[self imageViewForView:ann withFrame:annotationFrame withImage:image withBounds:oldBounds withTransform:oldTransform]];
         }
+    }
+    
+    NSMutableArray *piechartLabels = objc_getAssociatedObject(self, OBJECT_KEY);
+    
+    // Loop through pieChartLabels array
+    for(UILabel *label in piechartLabels) {
+        //record annotations current bounds and transform
+        oldBounds = label.bounds;
+        oldTransform = label.transform;
+        
+        image = [self setUpImageForView:label];
+        
+        [glImageView addSubview:[self imageViewForView:label withFrame:label.frame withImage:image withBounds:oldBounds withTransform:oldTransform]];
     }
     
     //Turn our composite into a single image
@@ -156,6 +165,47 @@
     UIGraphicsEndImageContext();
     
     return completeChartImage;
+}
+
+#pragma Private Methods
+
+// returns the image of view
+-(UIImage*)setUpImageForView:(UIView*)view{
+    /* Certain annotations have transforms applied to them - see updateViewWithCanvas: of SChartAnnotationZooming. Due to this we have to ensure that the bounds are correct before starting (and that we have reset the transform).*/
+    //get correct bounds of annotation
+    CGRect correctBounds = view.frame;
+    correctBounds.origin = CGPointZero;
+    CGContextRef context;
+    
+    //set correct bounds and identity transform
+    view.bounds = correctBounds;
+    view.transform = CGAffineTransformIdentity;
+    
+    if ([[UIScreen mainScreen] respondsToSelector:@selector(scale)]) {
+        UIGraphicsBeginImageContextWithOptions(view.frame.size, NO, [UIScreen mainScreen].scale);
+    } else {
+        UIGraphicsBeginImageContext(view.frame.size);
+    }
+    context = UIGraphicsGetCurrentContext();
+    
+    [view.layer renderInContext:context];
+    
+    UIImage *setUpImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    return setUpImage;
+}
+
+// Returns imageview of view with the given frame
+-(UIImageView*)imageViewForView:(UIView*)view withFrame:(CGRect)frame withImage:(UIImage*)image withBounds:(CGRect)oldBounds withTransform:(CGAffineTransform)oldTransform {
+    UIImageView *imageView = [[UIImageView alloc] initWithFrame:frame];
+    [imageView setImage:image];
+    
+    //set bounds and transform back
+    view.bounds = oldBounds;
+    view.transform = oldTransform;
+    
+    return imageView;
 }
 
 -(BOOL)annotationIsOnScreen:(CGRect)frame {
