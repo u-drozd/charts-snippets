@@ -29,12 +29,12 @@
 - (UIImage*)snapshot
 {
     
-    [EAGLContext setCurrentContext:_context];
+    [EAGLContext setCurrentContext:[self getContext]];
     
     GLint backingWidth, backingHeight;
     
     // Bind the color renderbuffer used to render the OpenGL ES view
-    glBindRenderbuffer(GL_RENDERBUFFER, _colorRenderBuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, [self getColorRenderBuffer]);
     
     // Get the size of the backing CAEAGLLayer
     glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &backingWidth);
@@ -44,7 +44,7 @@
     NSInteger dataLength = width * height * 4;
     GLubyte *data = (GLubyte*)malloc(dataLength * sizeof(GLubyte));
     
-    glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, [self getFramebuffer]);
     
     // Read pixel data from the framebuffer
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
