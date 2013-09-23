@@ -8,4 +8,4 @@ This project contains useful code snippets for ShinobiCharts. It's broken down b
 Contributing
 ------------
 
-We'd love to see your contributions to these features - please go ahead and fork it and send us a pull request when you're done! Or if you have a new project you think we should include here, email info@shinobicontrols.com to tell us about it.
+We'd love to see your contributions to these snippets - please go ahead and fork the repo and send us a pull request when you're done!
