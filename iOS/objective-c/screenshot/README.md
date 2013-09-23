@@ -13,8 +13,9 @@ To add Pie Chart labels to the image of your chart you must implement the follow
     	[_chart addPieChartLabel:label];
 	}
 
-See this code in action in the following blog:
-http://www.shinobicontrols.com/blog/posts/2012/03/26/taking-a-shinobichart-screenshot-from-your-app/
+An explanation of this code snippet can be found in a blog post [HERE](http://www.shinobicontrols.com/blog/posts/2012/03/26/taking-a-shinobichart-screenshot-from-your-app/). 
+
+However, this blog post is slightly out of date and will be updated shortly.
 
 If you have any trouble using this code snippet don't hesitate to get in touch at: info@shinobicontrols.com
 
