@@ -7,10 +7,12 @@ This method will return a UIImage of your chart and an example of how to use thi
 
 	UIImage *imageOfYourChart = [yourChart snapshot];
 	
-To add Pie Chart labels to the image of your chart you must implement the following SChartDelegate method:
+To add views to be drawn above the data on your chart you must use the "-addViewToSnapshot:addToGLView:" method.
+
+An example of this would be to add Pie Chart labels to your snapshot image. This can be done by implementing the following SChartDelegate method:
 
 	-(void)sChart:(ShinobiChart *)chart alterLabel:(UILabel *)label forDatapoint:(SChartRadialDataPoint *)datapoint atSliceIndex:(int)index inRadialSeries:(SChartRadialSeries *)series {
-    	[_chart addPieChartLabel:label];
+    	[_chart addViewToSnapshot:label addToGLView:YES];
 	}
 
 An explanation of this code snippet can be found in a blog post [HERE](http://www.shinobicontrols.com/blog/posts/2012/03/26/taking-a-shinobichart-screenshot-from-your-app/). 
