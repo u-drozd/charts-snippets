@@ -32,12 +32,12 @@
 
 @implementation ShinobiChart (Screenshot)
 
-/* 
+/**
  The addViewToSnapshot:addToGLView: method adds a view to be on top of the GLView in the Snapshot image which is
  returned in the snapshot method.
- The View parameter is the view you want to add to the snapshot image.
- The addToGL parameter defines whether the view has been added to the GLView of the chart or the chart's view.
- If YES, the view will be added to the GLView. If NO, it wil be added to the chart's view.
+ @param view The UIView to be added to the snapshot image.
+ @param addToGL A BOOL value defining whether the view passed in has been added to the GLView of the chart or the chart's view. If YES, the view will be added to the GLView. If NO, it wil be added to the chart's view.
+ @returns A BOOL value representing whether the view passed in had been successfully added.
  */
 - (BOOL)addViewToSnapshot:(UIView *)view addToGLView:(BOOL)addToGL {
     if(view){
@@ -64,7 +64,7 @@
     return NO;
 }
 
-/*
+/**
  The clearSnapshotViews method clears the arrays stored using associated reference.
  Call this when you no longer need the views you added via the addViewToSnapshot:addToGLView: method.
  */
@@ -73,9 +73,10 @@
     objc_setAssociatedObject(self, ADD_TO_GL_KEY, nil, OBJC_ASSOCIATION_RETAIN);
 }
 
-/*
+/**
  The snapshot method returns a UIImage of the chart with any views you added using the
  addViewToSnapshot:addToGLView: method to be drawn on top of the GLView.
+ @returns A UIImage of your chart and any views you have added.
  */
 - (UIImage*)snapshot {
     CGRect oldBounds;
@@ -208,7 +209,11 @@
 
 #pragma Private Methods
 
-// returns the image of view
+/**
+ This private method returns a UIImage of the view passed in.
+ @param view The UIView to take an image of.
+ @returns A UIImage of the view passed in.
+ */
 -(UIImage*)setUpImageForView:(UIView*)view{
     /* Certain annotations have transforms applied to them - see updateViewWithCanvas: of SChartAnnotationZooming. Due to this we have to ensure that the bounds are correct before starting (and that we have reset the transform).*/
     //get correct bounds of annotation
@@ -235,7 +240,15 @@
     return setUpImage;
 }
 
-// Returns imageview of view with the given frame
+/**
+ This private method returns an UIImageView of the image passed in. It also resets the passed in view's bounds & transform values.
+ @param view The UIView to have its bounds & transform values reset.
+ @param frame The CGRect value to set as the UIImageView's frame.
+ @param image The UIImage value to set as the UIImageView's image.
+ @param oldBounds A CGRect of the passed in view's old bounds value.
+ @param oldTransform A CGAffineTransform of the passed in view's old trasnform value.
+ @returns A UIImageView of the view passed in.
+ */
 -(UIImageView*)imageViewForView:(UIView*)view withFrame:(CGRect)frame withImage:(UIImage*)image withBounds:(CGRect)oldBounds withTransform:(CGAffineTransform)oldTransform {
     UIImageView *imageView = [[UIImageView alloc] initWithFrame:frame];
     [imageView setImage:image];
@@ -247,6 +260,11 @@
     return imageView;
 }
 
+/**
+ This private method checks whether the frame of an SChartAnnotation is on screen.
+ @param frame A CGRect of an SChartAnnotation's frame to check whether it is on screen.
+ @returns A BOOL value representing whether the frame passed in is on screen.
+ */
 -(BOOL)annotationIsOnScreen:(CGRect)frame {
     if(CGRectGetMaxX(frame) >= 0 && frame.origin.x <= self.canvas.glView.frame.size.width){
         if(CGRectGetMaxY(frame) >= 0 && frame.origin.y <= self.canvas.glView.frame.size.height){
