@@ -21,34 +21,63 @@
 #import "SChartGLView+Screenshot.h"
 #import <objc/runtime.h>
 
-#define OBJECT_KEY "pieChartLabels"
+#define VIEWS_KEY "chartViews"
+#define ADD_TO_GL_KEY "addToGL"
 
 @interface ShinobiChart (Screenshot)
 - (UIImage*)snapshot;
-- (BOOL)addPieChartLabel:(UILabel*)label;
+- (BOOL)addViewToSnapshot:(UIView *)view addToGLView:(BOOL)addToGL;
+- (void)clearSnapshotViews;
 @end
 
 @implementation ShinobiChart (Screenshot)
 
--(BOOL)addPieChartLabel:(UILabel *)label {
-    if(label){
-        // Use associated references to simulate an ivars
-        NSMutableArray *piechartLabels = objc_getAssociatedObject(self, OBJECT_KEY);
-        if(!piechartLabels){
-            piechartLabels = [NSMutableArray new];
+/**
+ The addViewToSnapshot:addToGLView: method adds a view to be on top of the GLView in the Snapshot image which is
+ returned in the snapshot method.
+ @param view The UIView to be added to the snapshot image.
+ @param addToGL A BOOL value defining whether the view passed in has been added to the GLView of the chart or the chart's view. If YES, the view will be added to the GLView. If NO, it wil be added to the chart's view.
+ @returns A BOOL value representing whether the view passed in had been successfully added.
+ */
+- (BOOL)addViewToSnapshot:(UIView *)view addToGLView:(BOOL)addToGL {
+    if(view){
+        // Use associated references to simulate an ivar
+        NSMutableArray *chartViews = objc_getAssociatedObject(self, VIEWS_KEY);
+        if(!chartViews){
+            chartViews = [NSMutableArray new];
         }
-        for(UILabel *loopLabel in piechartLabels) {
-            if([loopLabel isEqual:label]){
+        NSMutableArray *addToGLViews = objc_getAssociatedObject(self, ADD_TO_GL_KEY);
+        if(!addToGLViews){
+            addToGLViews = [NSMutableArray new];
+        }
+        for(UIView *savedView in chartViews) {
+            if([savedView isEqual:view]){
                 return NO;
             }
         }
-        [piechartLabels addObject:label];
-        objc_setAssociatedObject(self, OBJECT_KEY, piechartLabels, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [chartViews addObject:view];
+        [addToGLViews addObject:[NSNumber numberWithBool:addToGL]];
+        objc_setAssociatedObject(self, VIEWS_KEY, chartViews, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(self, ADD_TO_GL_KEY, addToGLViews, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         return YES;
     }
     return NO;
 }
 
+/**
+ The clearSnapshotViews method clears the arrays stored using associated reference.
+ Call this when you no longer need the views you added via the addViewToSnapshot:addToGLView: method.
+ */
+-(void)clearSnapshotViews {
+    objc_setAssociatedObject(self, VIEWS_KEY, nil, OBJC_ASSOCIATION_RETAIN);
+    objc_setAssociatedObject(self, ADD_TO_GL_KEY, nil, OBJC_ASSOCIATION_RETAIN);
+}
+
+/**
+ The snapshot method returns a UIImage of the chart with any views you added using the
+ addViewToSnapshot:addToGLView: method to be drawn on top of the GLView.
+ @returns A UIImage of your chart and any views you have added.
+ */
 - (UIImage*)snapshot {
     CGRect oldBounds;
     CGAffineTransform oldTransform;
@@ -148,17 +177,25 @@
         }
     }
     
-    NSMutableArray *piechartLabels = objc_getAssociatedObject(self, OBJECT_KEY);
+    NSMutableArray *chartViews = objc_getAssociatedObject(self, VIEWS_KEY);
+    NSMutableArray *addToGLViews = objc_getAssociatedObject(self, ADD_TO_GL_KEY);
     
-    // Loop through pieChartLabels array
-    for(UILabel *label in piechartLabels) {
-        //record annotations current bounds and transform
-        oldBounds = label.bounds;
-        oldTransform = label.transform;
+    // Loop through chartViews array
+    for(int i = 0; i < chartViews.count; i++) {
+        UIView *view = [chartViews objectAtIndex:i];
         
-        image = [self setUpImageForView:label];
+        //record view's current bounds and transform
+        oldBounds = view.bounds;
+        oldTransform = view.transform;
         
-        [glImageView addSubview:[self imageViewForView:label withFrame:label.frame withImage:image withBounds:oldBounds withTransform:oldTransform]];
+        image = [self setUpImageForView:view];
+        
+        // Adds view to either GLView or the Chart's View
+        if([[addToGLViews objectAtIndex:i] boolValue]) {
+            [glImageView addSubview:[self imageViewForView:view withFrame:view.frame withImage:image withBounds:oldBounds withTransform:oldTransform]];
+        } else {
+            [chartImageView addSubview:[self imageViewForView:view withFrame:view.frame withImage:image withBounds:oldBounds withTransform:oldTransform]];
+        }
     }
     
     //Turn our composite into a single image
@@ -172,7 +209,11 @@
 
 #pragma Private Methods
 
-// returns the image of view
+/**
+ This private method returns a UIImage of the view passed in.
+ @param view The UIView to take an image of.
+ @returns A UIImage of the view passed in.
+ */
 -(UIImage*)setUpImageForView:(UIView*)view{
     /* Certain annotations have transforms applied to them - see updateViewWithCanvas: of SChartAnnotationZooming. Due to this we have to ensure that the bounds are correct before starting (and that we have reset the transform).*/
     //get correct bounds of annotation
@@ -199,7 +240,15 @@
     return setUpImage;
 }
 
-// Returns imageview of view with the given frame
+/**
+ This private method returns an UIImageView of the image passed in. It also resets the passed in view's bounds & transform values.
+ @param view The UIView to have its bounds & transform values reset.
+ @param frame The CGRect value to set as the UIImageView's frame.
+ @param image The UIImage value to set as the UIImageView's image.
+ @param oldBounds A CGRect of the passed in view's old bounds value.
+ @param oldTransform A CGAffineTransform of the passed in view's old trasnform value.
+ @returns A UIImageView of the view passed in.
+ */
 -(UIImageView*)imageViewForView:(UIView*)view withFrame:(CGRect)frame withImage:(UIImage*)image withBounds:(CGRect)oldBounds withTransform:(CGAffineTransform)oldTransform {
     UIImageView *imageView = [[UIImageView alloc] initWithFrame:frame];
     [imageView setImage:image];
@@ -211,6 +260,11 @@
     return imageView;
 }
 
+/**
+ This private method checks whether the frame of an SChartAnnotation is on screen.
+ @param frame A CGRect of an SChartAnnotation's frame to check whether it is on screen.
+ @returns A BOOL value representing whether the frame passed in is on screen.
+ */
 -(BOOL)annotationIsOnScreen:(CGRect)frame {
     if(CGRectGetMaxX(frame) >= 0 && frame.origin.x <= self.canvas.glView.frame.size.width){
         if(CGRectGetMaxY(frame) >= 0 && frame.origin.y <= self.canvas.glView.frame.size.height){
